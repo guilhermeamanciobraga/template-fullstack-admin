@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import api from '../services/api';
+import logoImg from '../assets/logo2.png';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -14,16 +15,23 @@ const Login = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (loading) return;
+
         setError('');
         setLoading(true);
 
         try {
             const response = await api.post('/auth/login', { email, password });
-            localStorage.setItem('@App:token', response.data.token);
-            localStorage.setItem('@App:user', JSON.stringify(response.data.user));
-            navigate('/home');
+
+            if (response.data.token) {
+                localStorage.setItem('@App:token', response.data.token);
+                localStorage.setItem('@App:user', JSON.stringify(response.data.user));
+                navigate('/home');
+            }
         } catch (err) {
-            setError(err.response?.data?.message || 'Erro ao conectar ao servidor');
+            const message = err.response?.data?.message || 'Erro ao conectar ao servidor. Verifique sua conexão.';
+            setError(message);
         } finally {
             setLoading(false);
         }
@@ -31,13 +39,11 @@ const Login = () => {
 
     return (
         <div className="min-h-screen flex flex-col font-sans">
-            {/* Header Superior Fundo Branco */}
             <header className="h-20 bg-white border-b border-gray-100 flex items-center px-8 md:px-16 z-10">
-                <span className="text-2xl font-bold text-black">Sua Logo</span>
+                <img src={logoImg} alt="Logo" className="h-10 w-auto" />
             </header>
 
             <div className="flex flex-1">
-                {/* Lado Esquerdo - Marketing */}
                 <div className="hidden lg:flex lg:w-1/2 bg-[#E1F1F8] p-16 flex-col justify-center items-center">
                     <div className="max-w-xl text-center">
                         <h2 className="text-4xl font-extrabold text-[#113247] mb-6 leading-tight">
@@ -54,7 +60,6 @@ const Login = () => {
                     </div>
                 </div>
 
-                {/* Lado Direito - Formulário */}
                 <div className="w-full lg:w-1/2 bg-[#F8FAFB] flex flex-col p-8 md:p-16 justify-center">
                     <div className="bg-white p-10 shadow-[0_4px_12px_rgba(0,0,0,0.08)] rounded-sm max-w-lg mx-auto w-full border border-gray-50">
                         <h3 className="text-3xl font-extrabold text-[#113247] mb-8">Olá!</h3>
