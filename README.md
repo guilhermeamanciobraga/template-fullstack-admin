@@ -15,3 +15,9 @@ npm run dev
 Na pasta /frontend, execute:
 
 npm run build
+
+## Upload pro Git
+
+git add .
+git commit -m "Atualização"
+git push
