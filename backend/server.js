@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const sequelize = require('./src/config/database');
 const User = require('./src/models/User');
+const authRoutes = require('./src/routes/authRoutes');
 
 dotenv.config();
 
@@ -40,8 +41,11 @@ const syncDatabase = async () => {
 
 syncDatabase();
 
+app.use('/api/auth', authRoutes);
+
 app.get('/health', async (req, res) => {
     try {
+        await sequelize.authenticate();
         const count = await User.count();
         res.json({
             status: "Online",

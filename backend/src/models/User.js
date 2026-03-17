@@ -24,6 +24,14 @@ const User = sequelize.define('User', {
     role: {
         type: DataTypes.ENUM('admin', 'user'),
         defaultValue: 'user',
+    },
+    login_attempts: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+    },
+    lock_until: {
+        type: DataTypes.DATE,
+        allowNull: true,
     }
 });
 
