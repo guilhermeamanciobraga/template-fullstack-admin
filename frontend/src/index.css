@@ -1,3 +1,29 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+@font-face {
+    font-family: 'Aptos';
+    src: local('Aptos'),
+        local('Aptos Display'),
+        local('Aptos Narrow');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Aptos';
+    src: local('Aptos Bold');
+    font-weight: bold;
+    font-style: normal;
+}
+
+@layer base {
+    * {
+        font-family: 'Aptos', 'Segoe UI', system-ui, -apple-system, sans-serif !important;
+    }
+
+    body {
+        @apply bg-[#F8FAFB] antialiased;
+    }
+}
