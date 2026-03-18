@@ -13,7 +13,7 @@ const MainLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-    const [openMenus, setOpenMenus] = useState({ admin: true });
+    const [openMenus, setOpenMenus] = useState({ admin: false });
     const [loading, setLoading] = useState({ active: false, message: 'Carregando Dados...' });
 
     const [user, setUser] = useState(() => {
@@ -22,6 +22,8 @@ const MainLayout = () => {
             return saved ? JSON.parse(saved) : null;
         } catch (e) { return null; }
     });
+
+    const isAdmin = user?.role === 'admin';
 
     const setIsLoading = useCallback((active, message = 'Carregando Dados...') => {
         setLoading({ active, message });
@@ -35,12 +37,19 @@ const MainLayout = () => {
             } catch (e) { }
         };
         window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        const interval = setInterval(handleStorageChange, 1000);
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            clearInterval(interval);
+        };
     }, []);
 
     useEffect(() => {
         setProfileMenuOpen(false);
         setIsLoading(false);
+        if (location.pathname === '/users' || location.pathname === '/settings') {
+            setOpenMenus({ admin: true });
+        }
     }, [location, setIsLoading]);
 
     const toggleMenu = (menu) => {
@@ -51,6 +60,16 @@ const MainLayout = () => {
         localStorage.clear();
         navigate('/');
     };
+
+    const handleLogoClick = (e) => {
+        e.preventDefault();
+        window.location.href = '/home';
+    };
+
+    const isHomeActive = location.pathname === '/home' && !openMenus.admin;
+    const isUsersActive = location.pathname === '/users';
+    const isSettingsActive = location.pathname === '/settings';
+    const isAdminMenuFocused = openMenus.admin && !isUsersActive && !isSettingsActive;
 
     return (
         <LoadingContext.Provider value={{ setIsLoading }}>
@@ -65,8 +84,10 @@ const MainLayout = () => {
                     </div>
                 )}
 
-                <header className="h-20 bg-white border-b border-gray-100 flex items-center px-8 z-30 justify-between shrink-0">
-                    <Link to="/home"><img src={logoImg} alt="Logo" className="h-10 w-auto cursor-pointer" /></Link>
+                <header className="h-20 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.03)] border-b border-gray-100 flex items-center px-8 z-30 justify-between shrink-0">
+                    <a href="/home" onClick={handleLogoClick}>
+                        <img src={logoImg} alt="Logo" className="h-10 w-auto cursor-pointer" />
+                    </a>
 
                     <div className="relative">
                         <button onClick={() => setProfileMenuOpen(!profileMenuOpen)} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-sm cursor-pointer transition-all">
@@ -77,8 +98,12 @@ const MainLayout = () => {
                                     <span className="text-[10px] text-green-600 font-bold uppercase tracking-widest">Ativo</span>
                                 </div>
                             </div>
-                            <div className="w-10 h-10 rounded-full bg-[#E1F1F8] flex items-center justify-center border border-gray-100 text-[#113247]">
-                                <UserIcon size={20} />
+                            <div className="w-10 h-10 rounded-full bg-[#E1F1F8] flex items-center justify-center border border-gray-100 text-[#113247] overflow-hidden">
+                                {user?.avatar_url ? (
+                                    <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    <UserIcon size={20} />
+                                )}
                             </div>
                             <ChevronDown size={14} className={`text-gray-400 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
                         </button>
@@ -108,43 +133,59 @@ const MainLayout = () => {
                     <aside className="w-72 bg-[#113247] flex flex-col shrink-0 z-20">
                         <nav className="flex-1 mt-6 space-y-1 overflow-y-auto px-0 text-gray-400">
                             <button
-                                onClick={() => navigate('/home')}
-                                className={`w-full flex items-center gap-3 px-6 py-4 text-sm font-bold transition-all border-l-4 ${location.pathname === '/home' ? 'bg-white/10 text-white border-[#64E7FA]' : 'border-transparent hover:text-white hover:bg-white/5'}`}
+                                onClick={() => {
+                                    setOpenMenus({ admin: false });
+                                    navigate('/home');
+                                }}
+                                className={`w-full flex items-center gap-3 px-6 py-4 text-sm font-bold transition-all border-l-4 ${isHomeActive ? 'bg-white/10 text-white border-[#64E7FA]' : 'border-transparent hover:text-white hover:bg-white/5'}`}
                             >
                                 <HomeIcon size={18} /> <span>Home</span>
                             </button>
 
-                            <div className="pt-2">
-                                <button
-                                    onClick={() => toggleMenu('admin')}
-                                    className="w-full flex items-center justify-between hover:text-white px-6 py-4 text-sm font-bold transition-colors border-l-4 border-transparent"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <ShieldCheck size={18} /> <span>Administração</span>
+                            {isAdmin && (
+                                <div className="pt-2">
+                                    <button
+                                        onClick={() => toggleMenu('admin')}
+                                        className={`w-full flex items-center justify-between hover:text-white px-6 py-4 text-sm font-bold transition-colors border-l-4 ${isAdminMenuFocused ? 'bg-white/10 text-white border-[#64E7FA]' : 'border-transparent'}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <ShieldCheck size={18} /> <span>Administração</span>
+                                        </div>
+                                        {openMenus.admin ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                    </button>
+
+                                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openMenus.admin ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                        <div className="bg-[#0d2738]/50">
+                                            <button
+                                                onClick={() => navigate('/users')}
+                                                className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-semibold hover:text-white hover:bg-white/5 pl-14 text-left transition-all border-l-4 ${isUsersActive ? 'text-white border-[#64E7FA] bg-white/5' : 'border-transparent'}`}
+                                            >
+                                                Gerenciar Usuários
+                                            </button>
+                                            <button
+                                                onClick={() => navigate('/settings')}
+                                                className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-semibold hover:text-white hover:bg-white/5 pl-14 text-left transition-all border-l-4 ${isSettingsActive ? 'text-white border-[#64E7FA] bg-white/5' : 'border-transparent'}`}
+                                            >
+                                                Configurações
+                                            </button>
+                                        </div>
                                     </div>
-                                    {openMenus.admin ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                </button>
-                                {openMenus.admin && (
-                                    <div className="bg-[#0d2738]/50">
-                                        <button onClick={() => navigate('/users')} className="w-full flex items-center gap-3 px-6 py-3 text-sm font-semibold hover:text-white hover:bg-white/5 pl-14 text-left transition-all">
-                                            Gerenciar Usuários
-                                        </button>
-                                        <button className="w-full flex items-center gap-3 px-6 py-3 text-sm font-semibold hover:text-white hover:bg-white/5 pl-14 text-left transition-all">
-                                            Configurações
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                                </div>
+                            )}
                         </nav>
 
                         <div className="p-6 border-t border-white/5 bg-[#0d2738] shrink-0">
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full bg-[#E1F1F8] flex items-center justify-center text-[#113247] border border-[#64E7FA]/20">
-                                    <UserIcon size={24} />
+                                <div className="w-12 h-12 rounded-full bg-[#E1F1F8] flex items-center justify-center text-[#113247] border border-[#64E7FA]/20 overflow-hidden">
+                                    {user?.avatar_url ? (
+                                        <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <UserIcon size={24} />
+                                    )}
                                 </div>
                                 <div className="flex flex-col overflow-hidden text-left">
                                     <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest leading-tight">EBYTE DIGITAL</span>
-                                    <span className="text-lg font-bold text-white truncate leading-tight">Admin</span>
+                                    <span className="text-lg font-bold text-white truncate leading-tight">{user?.name?.split(' ')[0] || 'Admin'}</span>
                                 </div>
                             </div>
                         </div>

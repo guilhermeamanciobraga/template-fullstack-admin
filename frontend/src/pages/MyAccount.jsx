@@ -9,19 +9,24 @@ const MyAccount = () => {
     const { setIsLoading } = useLoading();
     const fileInputRef = useRef(null);
 
+    const [userId, setUserId] = useState(null);
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [profileImage, setProfileImage] = useState(null);
     const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
     const [dataReady, setDataReady] = useState(false);
 
+    const isMaster = userId === 1;
+
     useEffect(() => {
         const loadProfile = async () => {
             setIsLoading(true);
             try {
                 const response = await api.get('/auth/profile');
+                setUserId(response.data.id);
                 setName(response.data.name);
                 setEmail(response.data.email);
+                setProfileImage(response.data.avatar_url || null);
                 setDataReady(true);
             } catch (err) {
                 showModal('error', 'Erro de Conexão', 'Não foi possível carregar seus dados do servidor.');
@@ -36,15 +41,47 @@ const MyAccount = () => {
         };
     }, [setIsLoading, showModal]);
 
+    const executeUpload = async (file) => {
+        setIsLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append('avatar', file);
+
+            const response = await api.patch('/auth/avatar', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            setProfileImage(response.data.avatar_url);
+
+            const localUser = JSON.parse(localStorage.getItem('@App:user'));
+            localStorage.setItem('@App:user', JSON.stringify({
+                ...localUser,
+                avatar_url: response.data.avatar_url
+            }));
+
+            showToast('success', 'Foto de perfil atualizada!');
+        } catch (err) {
+            const message = err.response?.data?.message || 'Não foi possível salvar sua foto no servidor.';
+            const type = err.response?.status === 403 ? 'warning' : 'error';
+            showModal(type, 'Acesso Restrito', message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleImageChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setProfileImage(reader.result);
-                showToast('success', 'Pré-visualização da foto carregada!');
-            };
-            reader.readAsDataURL(file);
+            if (file.size > 2 * 1024 * 1024) {
+                return showModal('warning', 'Arquivo muito grande', 'Escolha uma imagem de até 2MB.');
+            }
+
+            showModal(
+                'question',
+                'Alterar Foto',
+                'Deseja definir esta imagem como sua nova foto de perfil?',
+                () => executeUpload(file)
+            );
         }
     };
 
@@ -56,7 +93,9 @@ const MyAccount = () => {
             localStorage.setItem('@App:user', JSON.stringify({ ...localUser, name: response.data.user.name }));
             showToast('success', 'Nome atualizado com sucesso!');
         } catch (err) {
-            showModal('error', 'Erro', 'Não foi possível atualizar o nome no servidor.');
+            const message = err.response?.data?.message || 'Não foi possível atualizar o nome no servidor.';
+            const type = err.response?.status === 403 ? 'warning' : 'error';
+            showModal(type, 'Acesso Restrito', message);
         } finally {
             setIsLoading(false);
         }
@@ -64,6 +103,7 @@ const MyAccount = () => {
 
     const handleSaveProfile = (e) => {
         e.preventDefault();
+
         if (!name.trim()) {
             return showModal('error', 'Campo Vazio', 'O nome completo não pode estar em branco.');
         }
@@ -87,7 +127,8 @@ const MyAccount = () => {
             setPasswords({ current: '', next: '', confirm: '' });
         } catch (err) {
             const message = err.response?.data?.message || 'Erro ao atualizar senha.';
-            showModal('error', 'Falha na Segurança', message);
+            const type = err.response?.status === 403 ? 'warning' : 'error';
+            showModal(type, 'Segurança', message);
         } finally {
             setIsLoading(false);
         }
@@ -98,6 +139,15 @@ const MyAccount = () => {
 
         if (!passwords.current || !passwords.next || !passwords.confirm) {
             return showModal('warning', 'Atenção', 'Preencha todos os campos de senha para continuar.');
+        }
+
+        if (passwords.next.length < 6) {
+            return showModal('warning', 'Senha Curta', 'A nova senha deve conter no mínimo 6 caracteres.');
+        }
+
+        if (passwords.current === passwords.next) {
+            setPasswords({ ...passwords, next: '', confirm: '' });
+            return showModal('warning', 'Senha Idêntica', 'A nova senha deve ser diferente da senha atual.');
         }
 
         if (passwords.next !== passwords.confirm) {

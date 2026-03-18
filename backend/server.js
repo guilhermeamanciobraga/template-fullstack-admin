@@ -2,9 +2,11 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
+const path = require('path');
 const sequelize = require('./src/config/database');
 const User = require('./src/models/User');
 const authRoutes = require('./src/routes/authRoutes');
+const userRoutes = require('./src/routes/userRoutes');
 
 dotenv.config();
 
@@ -12,6 +14,8 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+app.use('/files', express.static(path.resolve(__dirname, 'uploads')));
 
 const syncDatabase = async () => {
     try {
@@ -30,7 +34,8 @@ const syncDatabase = async () => {
                 name: 'Admin Master',
                 email: adminEmail,
                 password: hashedPassword,
-                role: 'admin'
+                role: 'admin',
+                active: true
             });
             console.log('Usuario admin master criado');
         }
@@ -42,6 +47,7 @@ const syncDatabase = async () => {
 syncDatabase();
 
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', userRoutes);
 
 app.get('/health', async (req, res) => {
     try {
