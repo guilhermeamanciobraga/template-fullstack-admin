@@ -3,6 +3,7 @@ import MainLayout from "../layouts/MainLayout"
 import Home from "../pages/Home"
 import Login from "../pages/Login"
 import MyAccount from "../pages/MyAccount"
+import Help from "../pages/Help"
 
 const PrivateRoute = ({ children }) => {
     const token = localStorage.getItem('@App:token');
@@ -22,6 +23,7 @@ export default function AppRoutes() {
                 }>
                     <Route path="/home" element={<Home />} />
                     <Route path="/profile" element={<MyAccount />} />
+                    <Route path="/ajuda" element={<Help />} />
                 </Route>
 
                 <Route path="*" element={<Navigate to="/" replace />} />

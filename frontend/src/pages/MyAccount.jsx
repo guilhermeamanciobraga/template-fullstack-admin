@@ -1,16 +1,40 @@
-import React, { useState, useRef } from 'react';
-import { User, Mail, Shield, Calendar, Camera, Lock } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { User, Camera, Lock } from 'lucide-react';
 import { useNotification } from '../contexts/NotificationContext';
+import { useLoading } from '../layouts/MainLayout';
+import api from '../services/api';
 
 const MyAccount = () => {
     const { showModal, showToast } = useNotification();
-    const user = JSON.parse(localStorage.getItem('@App:user'));
+    const { setIsLoading } = useLoading();
     const fileInputRef = useRef(null);
 
-    const [name, setName] = useState(user?.name || '');
-    const [email] = useState(user?.email || '');
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
     const [profileImage, setProfileImage] = useState(null);
     const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
+    const [dataReady, setDataReady] = useState(false);
+
+    useEffect(() => {
+        const loadProfile = async () => {
+            setIsLoading(true);
+            try {
+                const response = await api.get('/auth/profile');
+                setName(response.data.name);
+                setEmail(response.data.email);
+                setDataReady(true);
+            } catch (err) {
+                showModal('error', 'Erro de Conexão', 'Não foi possível carregar seus dados do servidor.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadProfile();
+
+        return () => {
+            setIsLoading(false);
+        };
+    }, [setIsLoading, showModal]);
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
@@ -24,12 +48,49 @@ const MyAccount = () => {
         }
     };
 
+    const executeSaveProfile = async () => {
+        setIsLoading(true);
+        try {
+            const response = await api.put('/auth/profile', { name });
+            const localUser = JSON.parse(localStorage.getItem('@App:user'));
+            localStorage.setItem('@App:user', JSON.stringify({ ...localUser, name: response.data.user.name }));
+            showToast('success', 'Nome atualizado com sucesso!');
+        } catch (err) {
+            showModal('error', 'Erro', 'Não foi possível atualizar o nome no servidor.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleSaveProfile = (e) => {
         e.preventDefault();
         if (!name.trim()) {
             return showModal('error', 'Campo Vazio', 'O nome completo não pode estar em branco.');
         }
-        showToast('success', 'Nome atualizado com sucesso!');
+
+        showModal(
+            'question',
+            'Confirmar Alteração',
+            `Deseja realmente alterar seu nome para "${name}"?`,
+            executeSaveProfile
+        );
+    };
+
+    const executeUpdatePassword = async () => {
+        setIsLoading(true);
+        try {
+            await api.put('/auth/profile', {
+                currentPassword: passwords.current,
+                newPassword: passwords.next
+            });
+            showToast('success', 'Senha alterada com sucesso!');
+            setPasswords({ current: '', next: '', confirm: '' });
+        } catch (err) {
+            const message = err.response?.data?.message || 'Erro ao atualizar senha.';
+            showModal('error', 'Falha na Segurança', message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleUpdatePassword = (e) => {
@@ -43,19 +104,24 @@ const MyAccount = () => {
             return showModal('danger', 'Erro de Validação', 'A nova senha e a confirmação não coincidem.');
         }
 
-        showToast('success', 'Senha alterada com sucesso!');
-        setPasswords({ current: '', next: '', confirm: '' });
+        showModal(
+            'warning',
+            'Alterar Senha',
+            'Tem certeza que deseja alterar sua senha de acesso?',
+            executeUpdatePassword
+        );
     };
 
+    if (!dataReady) return null;
+
     return (
-        <div className="max-w-5xl">
+        <div className="max-w-5xl font-aptos animate-in fade-in duration-500">
             <header className="mb-10">
                 <h2 className="text-3xl font-extrabold text-[#113247]">Minha Conta</h2>
                 <p className="text-[#334D5C] mt-1 text-lg">Atualize suas informações e mantenha sua conta segura.</p>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
                 <div className="lg:col-span-1 space-y-6">
                     <div className="bg-white border border-gray-100 shadow-sm rounded-sm p-8 flex flex-col items-center text-center">
                         <div className="relative group">
@@ -63,7 +129,7 @@ const MyAccount = () => {
                                 {profileImage ? (
                                     <img src={profileImage} alt="Preview" className="w-full h-full object-cover" />
                                 ) : (
-                                    <span className="text-4xl font-black text-[#113247] uppercase">{name.charAt(0)}</span>
+                                    <User size={48} className="text-[#113247]" />
                                 )}
                             </div>
                             <button
@@ -92,14 +158,13 @@ const MyAccount = () => {
                             </div>
                             <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
                                 <span className="text-gray-400">Acesso</span>
-                                <span className="text-[#113247]">Administrador</span>
+                                <span className="text-[#113247]">Admin</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div className="lg:col-span-2 space-y-8">
-
                     <form onSubmit={handleSaveProfile} className="bg-white border border-gray-100 shadow-sm rounded-sm">
                         <div className="p-6 border-b border-gray-50 flex items-center gap-3">
                             <div className="p-2 bg-[#E1F1F8] rounded-sm text-[#113247]">
@@ -174,7 +239,6 @@ const MyAccount = () => {
                             </div>
                         </div>
                     </form>
-
                 </div>
             </div>
         </div>

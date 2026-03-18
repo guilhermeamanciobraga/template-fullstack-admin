@@ -21,7 +21,7 @@ const login = async (req, res) => {
         const isPasswordValid = await bcrypt.compare(password, user.password);
 
         if (!isPasswordValid) {
-            const attempts = user.login_attempts + 1;
+            const attempts = (user.login_attempts || 0) + 1;
             const remaining = 5 - attempts;
             let updateData = { login_attempts: attempts };
 
@@ -55,4 +55,58 @@ const login = async (req, res) => {
     }
 };
 
-module.exports = { login };
+const getProfile = async (req, res) => {
+    try {
+        const user = await User.findByPk(req.userId, {
+            attributes: ['id', 'name', 'email', 'role']
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: 'Usuário não encontrado' });
+        }
+
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao buscar perfil' });
+    }
+};
+
+const updateProfile = async (req, res) => {
+    try {
+        const { name, currentPassword, newPassword } = req.body;
+        const user = await User.findByPk(req.userId);
+
+        if (!user) {
+            return res.status(404).json({ message: 'Usuário não encontrado' });
+        }
+
+        if (name) {
+            user.name = name;
+        }
+
+        if (newPassword) {
+            if (!currentPassword) {
+                return res.status(400).json({ message: 'A senha atual é obrigatória para definir uma nova' });
+            }
+
+            const isMatch = await bcrypt.compare(currentPassword, user.password);
+            if (!isMatch) {
+                return res.status(400).json({ message: 'A senha atual está incorreta' });
+            }
+
+            const salt = await bcrypt.genSalt(10);
+            user.password = await bcrypt.hash(newPassword, salt);
+        }
+
+        await user.save();
+
+        res.json({
+            message: 'Perfil atualizado com sucesso',
+            user: { id: user.id, name: user.name, email: user.email, role: user.role }
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao atualizar perfil' });
+    }
+};
+
+module.exports = { login, getProfile, updateProfile };
