@@ -238,7 +238,11 @@ const Users = () => {
                                         <div className="flex items-center gap-3">
                                             <div className="w-9 h-9 rounded-full bg-[#E1F1F8] flex items-center justify-center border border-gray-100 overflow-hidden shrink-0">
                                                 {user.avatar ? (
-                                                    <img src={`http://localhost:3001/files/${user.avatar}`} alt={user.name} className="w-full h-full object-cover" />
+                                                    <img
+                                                        src={user.avatar_url || `${import.meta.env.VITE_API_URL}/files/${user.avatar}`}
+                                                        alt={user.name}
+                                                        className="w-full h-full object-cover"
+                                                    />
                                                 ) : (
                                                     <span className="text-[#113247] font-bold text-xs">{user.name.charAt(0).toUpperCase()}</span>
                                                 )}

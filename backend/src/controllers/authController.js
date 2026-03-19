@@ -60,7 +60,7 @@ const login = async (req, res) => {
         );
 
         const avatar_url = user.avatar
-            ? `${process.env.APP_URL || 'http://localhost:3001'}/files/${user.avatar}`
+            ? `${process.env.APP_URL}/files/${user.avatar}`
             : null;
 
         res.json({
@@ -119,7 +119,7 @@ const getProfile = async (req, res) => {
 
         const userJson = user.toJSON();
         userJson.avatar_url = user.avatar
-            ? `${process.env.APP_URL || 'http://localhost:3001'}/files/${user.avatar}`
+            ? `${process.env.APP_URL}/files/${user.avatar}`
             : null;
 
         res.json(userJson);
@@ -173,7 +173,7 @@ const updateProfile = async (req, res) => {
         await user.save();
 
         const avatar_url = user.avatar
-            ? `${process.env.APP_URL || 'http://localhost:3001'}/files/${user.avatar}`
+            ? `${process.env.APP_URL}/files/${user.avatar}`
             : null;
 
         res.json({
@@ -215,7 +215,7 @@ const updateAvatar = async (req, res) => {
         user.avatar = req.file.filename;
         await user.save();
 
-        const avatar_url = `${process.env.APP_URL || 'http://localhost:3001'}/files/${user.avatar}`;
+        const avatar_url = `${process.env.APP_URL}/files/${user.avatar}`;
 
         res.json({
             message: 'Avatar atualizado com sucesso',
@@ -262,7 +262,7 @@ const forgotPassword = async (req, res) => {
             password_reset_expires: expires
         });
 
-        const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
+        const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
         try {
             await resend.emails.send({

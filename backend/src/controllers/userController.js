@@ -10,7 +10,16 @@ module.exports = {
                 attributes: ['id', 'name', 'email', 'role', 'active', 'avatar'],
                 order: [['name', 'ASC']]
             });
-            return res.json(users);
+
+            const usersWithAvatarUrl = users.map(user => {
+                const userJson = user.toJSON();
+                userJson.avatar_url = user.avatar
+                    ? `${process.env.APP_URL}/files/${user.avatar}`
+                    : null;
+                return userJson;
+            });
+
+            return res.json(usersWithAvatarUrl);
         } catch (error) {
             return res.status(500).json({ error: 'Erro ao listar usuários' });
         }
