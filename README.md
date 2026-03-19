@@ -21,8 +21,3 @@ npm run build
 git add .
 git commit -m "Atualização"
 git push
-
-## Tarefas:
-
-Corrigir bug da duplicaão das imagens de perfil!
-Criar um sistema de redefinição de senha externo!

@@ -1,5 +1,7 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
+const path = require('path');
 
 module.exports = {
     async index(req, res) {
@@ -100,7 +102,21 @@ module.exports = {
         }
 
         try {
-            await User.destroy({ where: { id } });
+            const user = await User.findByPk(id);
+
+            if (!user) {
+                return res.status(404).json({ error: 'Usuário não encontrado' });
+            }
+
+            if (user.avatar) {
+                const avatarPath = path.resolve(__dirname, '..', '..', 'uploads', user.avatar);
+                if (fs.existsSync(avatarPath)) {
+                    fs.unlinkSync(avatarPath);
+                }
+            }
+
+            await user.destroy();
+
             return res.status(204).send();
         } catch (error) {
             return res.status(500).json({ error: 'Erro ao excluir' });

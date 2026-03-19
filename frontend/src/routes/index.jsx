@@ -7,6 +7,9 @@ import Help from "../pages/Help"
 import Users from "../pages/admin_access/Users"
 import Settings from "../pages/admin_access/Settings"
 
+import ForgotPassword from "../pages/recovery/ForgotPassword"
+import ResetPassword from "../pages/recovery/ResetPassword"
+
 const PrivateRoute = ({ children }) => {
     const token = localStorage.getItem('@App:token');
     return token ? children : <Navigate to="/" replace />;
@@ -22,6 +25,8 @@ export default function AppRoutes() {
         <BrowserRouter>
             <Routes>
                 <Route path="/" element={<Login />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
 
                 <Route element={
                     <PrivateRoute>

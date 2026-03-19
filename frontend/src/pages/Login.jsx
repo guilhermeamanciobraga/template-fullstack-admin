@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import api from '../services/api';
 import logoImg from '../assets/logo2.png';
@@ -87,9 +87,12 @@ const Login = () => {
                                 <div>
                                     <div className="flex justify-between items-center mb-1.5">
                                         <label className="block text-sm font-bold text-[#113247] uppercase tracking-wider">Senha</label>
-                                        <button type="button" className="text-xs font-bold text-[#0D6EFD] hover:underline uppercase tracking-tight">
+                                        <Link
+                                            to="/forgot-password"
+                                            className="text-xs font-bold text-[#0D6EFD] hover:underline uppercase tracking-tight"
+                                        >
                                             Esqueceu sua senha?
-                                        </button>
+                                        </Link>
                                     </div>
                                     <div className="relative">
                                         <input
