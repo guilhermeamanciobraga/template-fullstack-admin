@@ -61,9 +61,9 @@ module.exports = {
             const { id } = req.params;
             const { password } = req.body;
 
-            if (String(id) === '1') {
+            if (String(id) === '1' && String(req.userId) !== '1') {
                 return res.status(403).json({
-                    error: 'A senha do administrador principal não pode ser alterada por este menu.'
+                    error: 'A senha do administrador principal não pode ser alterada por outros usuários.'
                 });
             }
 
@@ -92,14 +92,45 @@ module.exports = {
         const { active } = req.body;
 
         if (String(id) === '1') {
-            return res.status(403).json({ error: 'O administrador principal não pode ser desativado' });
+            return res.status(403).json({ error: 'O administrador principal não pode ser desativado.' });
+        }
+
+        if (String(id) === String(req.userId)) {
+            return res.status(403).json({
+                error: 'Você não pode desativar sua própria conta. Solicite a outro administrador.'
+            });
         }
 
         try {
-            await User.update({ active }, { where: { id } });
+            const user = await User.findByPk(id);
+            if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+            await user.update({ active });
             return res.send();
         } catch (error) {
             return res.status(500).json({ error: 'Erro ao mudar status' });
+        }
+    },
+
+    async updateRole(req, res) {
+        const { id } = req.params;
+        const { role } = req.body;
+
+        if (String(id) === '1') {
+            return res.status(403).json({ error: 'O cargo do administrador master não pode ser alterado.' });
+        }
+
+        if (String(id) === String(req.userId)) {
+            return res.status(403).json({
+                error: 'Você não pode alterar seu próprio nível de acesso. Solicite a outro administrador.'
+            });
+        }
+
+        try {
+            await User.update({ role }, { where: { id } });
+            return res.send();
+        } catch (error) {
+            return res.status(500).json({ error: 'Erro ao alterar nível de acesso' });
         }
     },
 
@@ -107,7 +138,13 @@ module.exports = {
         const { id } = req.params;
 
         if (String(id) === '1') {
-            return res.status(403).json({ error: 'O administrador principal não pode ser excluído' });
+            return res.status(403).json({ error: 'O administrador principal não pode ser excluído.' });
+        }
+
+        if (String(id) === String(req.userId)) {
+            return res.status(403).json({
+                error: 'Você não pode excluir sua própria conta. Solicite a outro administrador.'
+            });
         }
 
         try {

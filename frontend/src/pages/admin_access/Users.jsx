@@ -10,6 +10,7 @@ import { useNotification } from '../../contexts/NotificationContext';
 const Users = () => {
     const { setIsLoading } = useLoading();
     const { showToast, showModal } = useNotification();
+    const currentUser = JSON.parse(localStorage.getItem('@SIG:user'));
 
     const [users, setUsers] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -59,11 +60,9 @@ const Users = () => {
 
     const handleCreateUser = async (e) => {
         e.preventDefault();
-
         if (formData.password.length < 6) {
             return showToast('error', 'A senha deve conter no mínimo 6 caracteres.');
         }
-
         try {
             setIsLoading(true, 'Cadastrando...');
             await api.post('/admin/users', formData);
@@ -80,15 +79,12 @@ const Users = () => {
 
     const handleUpdatePassword = async (e) => {
         e.preventDefault();
-
         if (passwordData.newPassword.length < 6) {
             return showToast('error', 'A nova senha deve conter no mínimo 6 caracteres.');
         }
-
         if (passwordData.newPassword !== passwordData.confirmPassword) {
             return showToast('error', 'As senhas digitadas não são iguais.');
         }
-
         try {
             setIsLoading(true, 'Atualizando senha...');
             await api.patch(`/admin/users/${selectedUser.id}/password`, {
@@ -104,14 +100,21 @@ const Users = () => {
         }
     };
 
-    const toggleUserStatus = (user) => {
-        if (user.id === 1) {
-            showToast('error', 'O administrador principal não pode ser desativado.');
-            return;
+    const handleUpdateRole = async (user, newRole) => {
+        try {
+            setIsLoading(true, 'Atualizando cargo...');
+            await api.patch(`/admin/users/${user.id}/role`, { role: newRole });
+            showToast('success', 'Nível de acesso atualizado!');
+            fetchUsers();
+        } catch (error) {
+            showToast('error', error.response?.data?.error || "Erro ao atualizar cargo.");
+        } finally {
+            setIsLoading(false);
         }
+    };
 
+    const toggleUserStatus = (user) => {
         const action = user.active ? 'desativar' : 'ativar';
-
         showModal(
             'warning',
             'Confirmar alteração',
@@ -132,11 +135,6 @@ const Users = () => {
     };
 
     const deleteUser = (id) => {
-        if (id === 1) {
-            showToast('error', 'O administrador principal não pode ser excluído.');
-            return;
-        }
-
         showModal(
             'danger',
             'Excluir Usuário',
@@ -231,70 +229,87 @@ const Users = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                            {currentItems.map(user => (
-                                <tr key={user.id} className="hover:bg-gray-50/50 transition-colors text-sm">
-                                    <td className="px-6 py-4 text-center font-mono text-gray-400 text-xs">#{user.id}</td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-9 h-9 rounded-full bg-[#E1F1F8] flex items-center justify-center border border-gray-100 overflow-hidden shrink-0">
-                                                {user.avatar ? (
-                                                    <img
-                                                        src={user.avatar_url || `${import.meta.env.VITE_API_URL}/files/${user.avatar}`}
-                                                        alt={user.name}
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                ) : (
-                                                    <span className="text-[#113247] font-bold text-xs">{user.name.charAt(0).toUpperCase()}</span>
-                                                )}
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-[#113247]">{user.name}</span>
-                                                <span className="text-gray-400 text-[11px] italic leading-tight">{user.email}</span>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2 text-[#334D5C]">
-                                            <Shield size={14} className="text-[#64E7FA]" />
-                                            <span className="font-medium">{user.role === 'admin' ? 'Administrador' : 'Usuário Comum'}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-full ${user.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                            {user.active ? 'Ativo' : 'Inativo'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <button
-                                                onClick={() => { if (user.id !== 1) { setSelectedUser(user); setIsPasswordModalOpen(true); } }}
-                                                title={user.id === 1 ? "Bloqueado" : "Trocar Senha"}
-                                                disabled={user.id === 1}
-                                                className={`p-2 rounded-sm transition-all ${user.id === 1 ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-[#113247] hover:bg-gray-100'}`}
-                                            >
-                                                <Key size={16} />
-                                            </button>
+                            {currentItems.map(user => {
+                                const isSelf = user.id === currentUser?.id;
+                                const isMaster = user.id === 1;
 
-                                            <button
-                                                onClick={() => toggleUserStatus(user)}
-                                                disabled={user.id === 1}
-                                                title={user.id === 1 ? "Bloqueado" : (user.active ? "Desativar" : "Ativar")}
-                                                className={`p-2 rounded-sm transition-all ${user.id === 1 ? 'text-gray-200 cursor-not-allowed' : (user.active ? 'text-green-600 hover:bg-green-50' : 'text-red-500 hover:bg-red-50')}`}
-                                            >
-                                                {user.active ? <UserCheck size={18} /> : <UserX size={18} />}
-                                            </button>
+                                return (
+                                    <tr key={user.id} className={`hover:bg-gray-50/50 transition-colors text-sm ${isSelf ? 'bg-blue-50/30' : ''}`}>
+                                        <td className="px-6 py-4 text-center font-mono text-gray-400 text-xs">#{user.id}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-9 h-9 rounded-full bg-[#E1F1F8] flex items-center justify-center border border-gray-100 overflow-hidden shrink-0">
+                                                    {user.avatar ? (
+                                                        <img
+                                                            src={user.avatar_url || `${import.meta.env.VITE_API_URL}/files/${user.avatar}`}
+                                                            alt={user.name}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <span className="text-[#113247] font-bold text-xs">{user.name.charAt(0).toUpperCase()}</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-[#113247]">
+                                                        {user.name}
+                                                        {isSelf && <span className="ml-2 text-[9px] bg-[#113247] text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter">Você</span>}
+                                                    </span>
+                                                    <span className="text-gray-400 text-[11px] italic leading-tight">{user.email}</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2 text-[#334D5C]">
+                                                <Shield size={14} className={user.role === 'admin' ? "text-[#64E7FA]" : "text-gray-300"} />
+                                                <select
+                                                    value={user.role}
+                                                    disabled={isMaster}
+                                                    onChange={(e) => handleUpdateRole(user, e.target.value)}
+                                                    className="bg-transparent font-medium border-none focus:ring-0 p-0 text-sm cursor-pointer disabled:cursor-not-allowed"
+                                                >
+                                                    <option value="common_user">Usuário Comum</option>
+                                                    <option value="admin">Administrador</option>
+                                                </select>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-full ${user.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                {user.active ? 'Ativo' : 'Inativo'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => { setSelectedUser(user); setIsPasswordModalOpen(true); }}
+                                                    title={isMaster && !isSelf ? "Bloqueado" : "Trocar Senha"}
+                                                    disabled={isMaster && !isSelf}
+                                                    className={`p-2 rounded-sm transition-all ${isMaster && !isSelf ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-[#113247] hover:bg-gray-100'}`}
+                                                >
+                                                    <Key size={16} />
+                                                </button>
 
-                                            <button
-                                                onClick={() => deleteUser(user.id)}
-                                                disabled={user.id === 1}
-                                                className={`p-2 rounded-sm transition-all ${user.id === 1 ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-red-600 hover:bg-red-50'}`}
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                                                <button
+                                                    onClick={() => toggleUserStatus(user)}
+                                                    disabled={isMaster}
+                                                    title={isMaster ? "Bloqueado" : (user.active ? "Desativar" : "Ativar")}
+                                                    className={`p-2 rounded-sm transition-all ${isMaster ? 'text-gray-200 cursor-not-allowed' : (user.active ? 'text-green-600 hover:bg-green-50' : 'text-red-500 hover:bg-red-50')}`}
+                                                >
+                                                    {user.active ? <UserCheck size={18} /> : <UserX size={18} />}
+                                                </button>
+
+                                                <button
+                                                    onClick={() => deleteUser(user.id)}
+                                                    disabled={isMaster}
+                                                    title={isMaster ? "Bloqueado" : "Excluir"}
+                                                    className={`p-2 rounded-sm transition-all ${isMaster ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-red-600 hover:bg-red-50'}`}
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

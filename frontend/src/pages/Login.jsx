@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import api from '../services/api';
-import logoImg from '../assets/logo2.png';
+import { useSystemSettings } from '../hooks/useSystemSettings';
 
 const Login = () => {
+    const { logoUrl } = useSystemSettings();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -40,7 +41,13 @@ const Login = () => {
     return (
         <div className="h-screen flex flex-col overflow-hidden bg-[#F8FAFB]">
             <header className="h-20 bg-white border-b border-gray-100 flex items-center px-8 z-20 justify-between shrink-0">
-                <img src={logoImg} alt="Logo" className="h-10 w-auto" />
+                <div className="cursor-pointer" onClick={() => navigate('/')}>
+                    {logoUrl ? (
+                        <img src={logoUrl} alt="Logo" className="h-10 w-auto" />
+                    ) : (
+                        <span className="text-red-600 font-black text-xl tracking-tighter uppercase">Logomarca</span>
+                    )}
+                </div>
             </header>
 
             <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -133,7 +140,7 @@ const Login = () => {
 
                     <footer className="w-full py-4 bg-white border-t border-gray-100 text-center shrink-0 z-10">
                         <p className="text-[10px] md:text-xs text-gray-400 font-medium px-4">
-                            © {new Date().getFullYear()} Todos os direitos reservados. Desenvolvimento: <strong>EBYTE Digital</strong> | CNPJ: 52.168.219/0001-06
+                            © {new Date().getFullYear()} Todos os direitos reservados. Desenvolvimento: <strong>EBYTE Digital</strong>
                         </p>
                     </footer>
                 </div>

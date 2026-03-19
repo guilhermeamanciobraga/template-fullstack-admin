@@ -1,10 +1,10 @@
 import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
-import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
     LogOut, Home as HomeIcon, ChevronDown, ChevronRight,
     ShieldCheck, User as UserIcon, HelpCircle
 } from 'lucide-react';
-import logoImg from '../assets/logo2.png';
+import api from '../services/api';
 
 const LoadingContext = createContext({ setIsLoading: () => { } });
 export const useLoading = () => useContext(LoadingContext);
@@ -15,6 +15,7 @@ const MainLayout = () => {
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const [openMenus, setOpenMenus] = useState({ admin: false });
     const [loading, setLoading] = useState({ active: false, message: 'Carregando Dados...' });
+    const [systemLogo, setSystemLogo] = useState(null);
 
     const [user, setUser] = useState(() => {
         try {
@@ -29,6 +30,38 @@ const MainLayout = () => {
         setLoading({ active, message });
     }, []);
 
+    const loadSystemImages = async () => {
+        try {
+            const response = await api.get('/admin/system-images');
+            const logo = response.data.find(img => img.type === 'logo');
+            const favicon = response.data.find(img => img.type === 'favicon');
+
+            if (logo) setSystemLogo(logo.url);
+
+            if (favicon) {
+                const link = document.querySelector("link[rel~='icon']");
+                if (link) link.href = favicon.url;
+            }
+        } catch (error) {
+            console.error("Erro ao carregar identidade visual");
+        }
+    };
+
+    useEffect(() => {
+        loadSystemImages();
+    }, []);
+
+    useEffect(() => {
+        const handleUpdateLogo = (event) => {
+            if (event.detail.type === 'logo') {
+                setSystemLogo(event.detail.url);
+            }
+        };
+
+        window.addEventListener('updateSystemLogo', handleUpdateLogo);
+        return () => window.removeEventListener('updateSystemLogo', handleUpdateLogo);
+    }, []);
+
     useEffect(() => {
         const handleStorageChange = () => {
             try {
@@ -37,11 +70,7 @@ const MainLayout = () => {
             } catch (e) { }
         };
         window.addEventListener('storage', handleStorageChange);
-        const interval = setInterval(handleStorageChange, 1000);
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-            clearInterval(interval);
-        };
+        return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
 
     useEffect(() => {
@@ -59,11 +88,6 @@ const MainLayout = () => {
     const handleLogout = () => {
         localStorage.clear();
         navigate('/');
-    };
-
-    const handleLogoClick = (e) => {
-        e.preventDefault();
-        window.location.href = '/home';
     };
 
     const isHomeActive = location.pathname === '/home' && !openMenus.admin;
@@ -85,9 +109,13 @@ const MainLayout = () => {
                 )}
 
                 <header className="h-20 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.03)] border-b border-gray-100 flex items-center px-8 z-30 justify-between shrink-0">
-                    <a href="/home" onClick={handleLogoClick}>
-                        <img src={logoImg} alt="Logo" className="h-10 w-auto cursor-pointer" />
-                    </a>
+                    <div className="cursor-pointer" onClick={() => navigate('/home')}>
+                        {systemLogo ? (
+                            <img src={systemLogo} alt="Logo" className="h-10 w-auto" />
+                        ) : (
+                            <span className="text-red-600 font-black text-xl tracking-tighter">LOGOMARCA</span>
+                        )}
+                    </div>
 
                     <div className="relative">
                         <button onClick={() => setProfileMenuOpen(!profileMenuOpen)} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-sm cursor-pointer transition-all">
@@ -184,7 +212,7 @@ const MainLayout = () => {
                                     )}
                                 </div>
                                 <div className="flex flex-col overflow-hidden text-left">
-                                    <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest leading-tight">EBYTE DIGITAL</span>
+                                    <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest leading-tight">SISTEMA ATIVO</span>
                                     <span className="text-lg font-bold text-white truncate leading-tight">{user?.name?.split(' ')[0] || 'Admin'}</span>
                                 </div>
                             </div>
@@ -197,7 +225,7 @@ const MainLayout = () => {
                         </main>
                         <footer className="w-full py-4 bg-white border-t border-gray-100 text-center shrink-0 z-10">
                             <p className="text-[10px] md:text-xs text-gray-400 font-medium px-4">
-                                © {new Date().getFullYear()} Todos os direitos reservados. <strong>EBYTE Digital</strong>
+                                © {new Date().getFullYear()} Todos os direitos reservados.
                             </p>
                         </footer>
                     </div>

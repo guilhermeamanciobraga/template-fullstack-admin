@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import api from '../../services/api';
 import { useNotification } from '../../contexts/NotificationContext';
-import logoImg from '../../assets/logo2.png';
 
 export default function ResetPassword() {
     const [searchParams] = useSearchParams();
@@ -15,8 +14,29 @@ export default function ResetPassword() {
     const [loading, setLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [localError, setLocalError] = useState('');
+    const [systemLogo, setSystemLogo] = useState(null);
 
     const token = searchParams.get('token');
+
+    useEffect(() => {
+        const loadSystemImages = async () => {
+            try {
+                const response = await api.get('/admin/system-images');
+                const logo = response.data.find(img => img.type === 'logo');
+                const favicon = response.data.find(img => img.type === 'favicon');
+
+                if (logo) setSystemLogo(logo.url);
+
+                if (favicon) {
+                    const link = document.querySelector("link[rel~='icon']");
+                    if (link) link.href = favicon.url;
+                }
+            } catch (error) {
+                console.error("Erro ao carregar identidade visual");
+            }
+        };
+        loadSystemImages();
+    }, []);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -60,7 +80,13 @@ export default function ResetPassword() {
     return (
         <div className="h-screen flex flex-col overflow-hidden bg-[#F8FAFB]">
             <header className="h-20 bg-white border-b border-gray-100 flex items-center px-8 z-20 shrink-0">
-                <img src={logoImg} alt="Logo" className="h-10 w-auto" />
+                <div className="cursor-pointer" onClick={() => navigate('/')}>
+                    {systemLogo ? (
+                        <img src={systemLogo} alt="Logo" className="h-10 w-auto" />
+                    ) : (
+                        <span className="text-red-600 font-black text-xl tracking-tighter uppercase">Logomarca</span>
+                    )}
+                </div>
             </header>
 
             <div className="flex flex-1 justify-center items-center p-8">

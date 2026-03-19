@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const sequelize = require('./src/config/database');
 const User = require('./src/models/User');
+const SystemImage = require('./src/models/SystemImage');
 const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 
