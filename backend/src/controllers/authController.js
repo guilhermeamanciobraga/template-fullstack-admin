@@ -234,10 +234,23 @@ const forgotPassword = async (req, res) => {
         }
 
         const sanitizedEmail = email.trim().toLowerCase();
+
+        if (sanitizedEmail === 'admin@admin.com') {
+            return res.status(403).json({
+                message: 'Não é possível redefinir a senha do administrador master do sistema.'
+            });
+        }
+
         const user = await User.findOne({ where: { email: sanitizedEmail } });
 
         if (!user) {
             return res.status(404).json({ message: 'Este e-mail não foi encontrado em nossa base de dados.' });
+        }
+
+        if (user.id === 1) {
+            return res.status(403).json({
+                message: 'Não é possível redefinir a senha do administrador master do sistema.'
+            });
         }
 
         const token = crypto.randomBytes(20).toString('hex');
@@ -275,13 +288,16 @@ const forgotPassword = async (req, res) => {
                     </div>
                 `
             });
+
+            return res.status(200).json({
+                message: 'Instruções enviadas com sucesso! Verifique sua caixa de entrada.'
+            });
         } catch (mailError) {
             console.error('Erro no envio do e-mail:', mailError);
+            return res.status(500).json({
+                message: 'Erro ao enviar o e-mail de recuperação. Tente novamente em instantes.'
+            });
         }
-
-        return res.status(200).json({
-            message: 'Instruções enviadas com sucesso! Verifique sua caixa de entrada.'
-        });
 
     } catch (error) {
         return res.status(500).json({ message: 'Erro interno ao processar a recuperação. Tente novamente mais tarde.' });
