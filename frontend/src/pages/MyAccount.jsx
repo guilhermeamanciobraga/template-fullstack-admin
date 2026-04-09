@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User, Camera, Lock } from 'lucide-react';
+import { User as UserIcon, Camera, Lock } from 'lucide-react';
 import { useNotification } from '../contexts/NotificationContext';
 import { useLoading } from '../layouts/MainLayout';
 import api from '../services/api';
@@ -13,10 +13,9 @@ const MyAccount = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [profileImage, setProfileImage] = useState(null);
+    const [isGoogleAccount, setIsGoogleAccount] = useState(false);
     const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
     const [dataReady, setDataReady] = useState(false);
-
-    const isMaster = userId === 1;
 
     useEffect(() => {
         const loadProfile = async () => {
@@ -27,6 +26,7 @@ const MyAccount = () => {
                 setName(response.data.name);
                 setEmail(response.data.email);
                 setProfileImage(response.data.avatar_url || null);
+                setIsGoogleAccount(response.data.isGoogleUser);
                 setDataReady(true);
             } catch (err) {
                 showModal('error', 'Erro de Conexão', 'Não foi possível carregar seus dados do servidor.');
@@ -35,10 +35,6 @@ const MyAccount = () => {
             }
         };
         loadProfile();
-
-        return () => {
-            setIsLoading(false);
-        };
     }, [setIsLoading, showModal]);
 
     const executeUpload = async (file) => {
@@ -103,11 +99,9 @@ const MyAccount = () => {
 
     const handleSaveProfile = (e) => {
         e.preventDefault();
-
         if (!name.trim()) {
             return showModal('error', 'Campo Vazio', 'O nome completo não pode estar em branco.');
         }
-
         showModal(
             'question',
             'Confirmar Alteração',
@@ -119,12 +113,13 @@ const MyAccount = () => {
     const executeUpdatePassword = async () => {
         setIsLoading(true);
         try {
-            await api.put('/auth/profile', {
+            const response = await api.put('/auth/profile', {
                 currentPassword: passwords.current,
                 newPassword: passwords.next
             });
             showToast('success', 'Senha alterada com sucesso!');
             setPasswords({ current: '', next: '', confirm: '' });
+            setIsGoogleAccount(response.data.user.isGoogleUser);
         } catch (err) {
             const message = err.response?.data?.message || 'Erro ao atualizar senha.';
             const type = err.response?.status === 403 ? 'warning' : 'error';
@@ -137,15 +132,15 @@ const MyAccount = () => {
     const handleUpdatePassword = (e) => {
         e.preventDefault();
 
-        if (!passwords.current || !passwords.next || !passwords.confirm) {
-            return showModal('warning', 'Atenção', 'Preencha todos os campos de senha para continuar.');
+        if ((!isGoogleAccount && !passwords.current) || !passwords.next || !passwords.confirm) {
+            return showModal('warning', 'Atenção', 'Preencha os campos de nova senha para continuar.');
         }
 
         if (passwords.next.length < 6) {
             return showModal('warning', 'Senha Curta', 'A nova senha deve conter no mínimo 6 caracteres.');
         }
 
-        if (passwords.current === passwords.next) {
+        if (!isGoogleAccount && passwords.current === passwords.next) {
             setPasswords({ ...passwords, next: '', confirm: '' });
             return showModal('warning', 'Senha Idêntica', 'A nova senha deve ser diferente da senha atual.');
         }
@@ -156,8 +151,8 @@ const MyAccount = () => {
 
         showModal(
             'warning',
-            'Alterar Senha',
-            'Tem certeza que deseja alterar sua senha de acesso?',
+            'Definir Senha',
+            isGoogleAccount ? 'Deseja criar uma senha para acesso direto com e-mail?' : 'Tem certeza que deseja alterar sua senha de acesso?',
             executeUpdatePassword
         );
     };
@@ -179,7 +174,7 @@ const MyAccount = () => {
                                 {profileImage ? (
                                     <img src={profileImage} alt="Preview" className="w-full h-full object-cover" />
                                 ) : (
-                                    <User size={48} className="text-[#113247]" />
+                                    <UserIcon size={48} className="text-[#113247]" />
                                 )}
                             </div>
                             <button
@@ -208,7 +203,7 @@ const MyAccount = () => {
                             </div>
                             <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
                                 <span className="text-gray-400">Acesso</span>
-                                <span className="text-[#113247]">Admin</span>
+                                <span className="text-[#113247]">Usuário</span>
                             </div>
                         </div>
                     </div>
@@ -218,7 +213,7 @@ const MyAccount = () => {
                     <form onSubmit={handleSaveProfile} className="bg-white border border-gray-100 shadow-sm rounded-sm">
                         <div className="p-6 border-b border-gray-50 flex items-center gap-3">
                             <div className="p-2 bg-[#E1F1F8] rounded-sm text-[#113247]">
-                                <User size={18} />
+                                <UserIcon size={18} />
                             </div>
                             <h4 className="font-bold text-[#113247] uppercase text-sm tracking-wider">Informações Pessoais</h4>
                         </div>
@@ -251,19 +246,25 @@ const MyAccount = () => {
                             <div className="p-2 bg-[#E1F1F8] rounded-sm text-[#113247]">
                                 <Lock size={18} />
                             </div>
-                            <h4 className="font-bold text-[#113247] uppercase text-sm tracking-wider">Segurança da Conta</h4>
+                            <h4 className="font-bold text-[#113247] uppercase text-sm tracking-wider">
+                                {isGoogleAccount ? 'Criar Senha de Acesso' : 'Segurança da Conta'}
+                            </h4>
                         </div>
                         <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="md:col-span-2 space-y-2">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Senha Atual</label>
-                                <input
-                                    type="password"
-                                    className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-sm text-[#334D5C] font-semibold outline-none focus:border-[#64E7FA]"
-                                    placeholder="••••••••"
-                                    value={passwords.current}
-                                    onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
-                                />
-                            </div>
+
+                            {!isGoogleAccount && (
+                                <div className="md:col-span-2 space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Senha Atual</label>
+                                    <input
+                                        type="password"
+                                        className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-sm text-[#334D5C] font-semibold outline-none focus:border-[#64E7FA]"
+                                        placeholder="••••••••"
+                                        value={passwords.current}
+                                        onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
+                                    />
+                                </div>
+                            )}
+
                             <div className="space-y-2">
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nova Senha</label>
                                 <input
@@ -284,7 +285,7 @@ const MyAccount = () => {
                             </div>
                             <div className="md:col-span-2 flex justify-end pt-4">
                                 <button type="submit" className="bg-[#64E7FA] hover:bg-[#B5E9FC] text-[#113247] font-bold py-3 px-8 rounded-sm transition-all text-xs uppercase tracking-widest">
-                                    Atualizar Senha
+                                    {isGoogleAccount ? 'Definir Senha' : 'Atualizar Senha'}
                                 </button>
                             </div>
                         </div>

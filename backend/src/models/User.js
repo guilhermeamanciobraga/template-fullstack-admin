@@ -41,6 +41,10 @@ const User = sequelize.define('User', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    google: {
+        type: DataTypes.ENUM('S', 'N'),
+        defaultValue: 'N',
+    },
     password_reset_token: {
         type: DataTypes.STRING,
         allowNull: true,

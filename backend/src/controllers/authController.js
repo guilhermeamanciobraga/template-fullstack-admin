@@ -1,3 +1,5 @@
+const { OAuth2Client } = require('google-auth-library');
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
@@ -99,7 +101,10 @@ const updateUserPassword = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        await user.update({ password: hashedPassword });
+        await user.update({
+            password: hashedPassword,
+            google: 'N'
+        });
 
         return res.json({ message: 'Senha atualizada com sucesso' });
     } catch (error) {
@@ -110,7 +115,7 @@ const updateUserPassword = async (req, res) => {
 const getProfile = async (req, res) => {
     try {
         const user = await User.findByPk(req.userId, {
-            attributes: ['id', 'name', 'email', 'role', 'avatar']
+            attributes: ['id', 'name', 'email', 'role', 'avatar', 'google']
         });
 
         if (!user) {
@@ -118,8 +123,11 @@ const getProfile = async (req, res) => {
         }
 
         const userJson = user.toJSON();
+
+        userJson.isGoogleUser = user.google === 'S';
+
         userJson.avatar_url = user.avatar
-            ? `${process.env.APP_URL}/files/${user.avatar}`
+            ? (user.avatar.startsWith('http') ? user.avatar : `${process.env.APP_URL}/files/${user.avatar}`)
             : null;
 
         res.json(userJson);
@@ -136,7 +144,7 @@ const updateProfile = async (req, res) => {
             });
         }
 
-        const { name, currentPassword, newPassword } = req.body;
+        const { name, currentPassword, newPassword, isGoogleUser } = req.body;
         const user = await User.findByPk(req.userId);
 
         if (!user) {
@@ -152,22 +160,21 @@ const updateProfile = async (req, res) => {
                 return res.status(400).json({ message: 'A nova senha deve ter no mínimo 6 caracteres.' });
             }
 
-            if (!currentPassword) {
-                return res.status(400).json({ message: 'A senha atual é obrigatória para definir uma nova' });
-            }
+            if (user.google === 'N') {
+                if (!currentPassword) {
+                    return res.status(400).json({ message: 'A senha atual é obrigatória para definir uma nova' });
+                }
 
-            const isMatch = await bcrypt.compare(currentPassword, user.password);
-            if (!isMatch) {
-                return res.status(400).json({ message: 'A senha atual está incorreta' });
-            }
-
-            const isSamePassword = await bcrypt.compare(newPassword, user.password);
-            if (isSamePassword) {
-                return res.status(400).json({ message: 'A nova senha não pode ser igual à senha atual' });
+                const isMatch = await bcrypt.compare(currentPassword, user.password);
+                if (!isMatch) {
+                    return res.status(400).json({ message: 'A senha atual está incorreta' });
+                }
             }
 
             const salt = await bcrypt.genSalt(10);
             user.password = await bcrypt.hash(newPassword, salt);
+
+            user.google = 'N';
         }
 
         await user.save();
@@ -183,7 +190,8 @@ const updateProfile = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                avatar_url
+                avatar_url,
+                isGoogleUser: user.google === 'S'
             }
         });
     } catch (error) {
@@ -338,12 +346,72 @@ const resetPassword = async (req, res) => {
             password_reset_token: null,
             password_reset_expires: null,
             login_attempts: 0,
-            lock_until: null
+            lock_until: null,
+            google: 'N'
         });
 
         return res.json({ message: 'Senha redefinida com sucesso!' });
     } catch (error) {
         return res.status(500).json({ message: 'Erro interno ao redefinir a senha.' });
+    }
+};
+
+const googleLogin = async (req, res) => {
+    try {
+        const { token: googleToken } = req.body;
+
+        const ticket = await googleClient.verifyIdToken({
+            idToken: googleToken,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+
+        const { email, name, picture } = ticket.getPayload();
+        const sanitizedEmail = email.trim().toLowerCase();
+
+        let user = await User.findOne({ where: { email: sanitizedEmail } });
+
+        if (!user) {
+            const tempPassword = crypto.randomBytes(16).toString('hex');
+            const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+            user = await User.create({
+                name: name || 'Usuário Google',
+                email: sanitizedEmail,
+                password: hashedPassword,
+                avatar: picture,
+                role: 'common_user',
+                active: true,
+                google: 'S'
+            });
+        }
+
+        if (!user.active) {
+            return res.status(403).json({ message: 'Sua conta está desativada.' });
+        }
+
+        const token = jwt.sign(
+            { id: user.id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '1d' }
+        );
+
+        const avatar_url = user.avatar
+            ? (user.avatar.startsWith('http') ? user.avatar : `${process.env.APP_URL}/files/${user.avatar}`)
+            : picture;
+
+        return res.json({
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                avatar_url,
+                isGoogleUser: user.google === 'S'
+            },
+            token
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Falha na autenticação com Google' });
     }
 };
 
@@ -354,5 +422,6 @@ module.exports = {
     updateAvatar,
     updateUserPassword,
     forgotPassword,
-    resetPassword
+    resetPassword,
+    googleLogin
 };

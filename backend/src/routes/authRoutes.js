@@ -16,4 +16,6 @@ router.put('/profile', authMiddleware, authController.updateProfile);
 router.patch('/avatar', authMiddleware, upload.single('avatar'), authController.updateAvatar);
 router.patch('/admin/users/:id/password', authMiddleware, authController.updateUserPassword);
 
+router.post('/google-login', authController.googleLogin);
+
 module.exports = router;

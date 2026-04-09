@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { GoogleLogin } from '@react-oauth/google';
 import api from '../services/api';
 import { useSystemSettings } from '../hooks/useSystemSettings';
 
@@ -14,6 +15,12 @@ const Login = () => {
 
     const navigate = useNavigate();
 
+    const handleLoginSuccess = (data) => {
+        localStorage.setItem('@App:token', data.token);
+        localStorage.setItem('@App:user', JSON.stringify(data.user));
+        navigate('/home', { replace: true });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (loading) return;
@@ -25,13 +32,30 @@ const Login = () => {
             const response = await api.post('/auth/login', { email, password });
 
             if (response.data && response.data.token) {
-                localStorage.setItem('@App:token', response.data.token);
-                localStorage.setItem('@App:user', JSON.stringify(response.data.user));
-
-                return navigate('/home', { replace: true });
+                handleLoginSuccess(response.data);
             }
         } catch (err) {
             const message = err.response?.data?.message || 'Erro ao conectar ao servidor.';
+            setError(message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleSuccess = async (credentialResponse) => {
+        setError('');
+        setLoading(true);
+
+        try {
+            const response = await api.post('/auth/google-login', {
+                token: credentialResponse.credential
+            });
+
+            if (response.data && response.data.token) {
+                handleLoginSuccess(response.data);
+            }
+        } catch (err) {
+            const message = err.response?.data?.message || 'Erro na autenticação com Google.';
             setError(message);
         } finally {
             setLoading(false);
@@ -135,6 +159,27 @@ const Login = () => {
                                     {loading ? 'Processando...' : 'Avançar'}
                                 </button>
                             </form>
+
+                            <div className="relative my-8">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-gray-200"></div>
+                                </div>
+                                <div className="relative flex justify-center text-sm">
+                                    <span className="px-4 bg-white text-gray-500 font-medium uppercase tracking-widest text-[10px]">ou entrar com</span>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-center">
+                                <GoogleLogin
+                                    onSuccess={handleGoogleSuccess}
+                                    onError={() => setError('Falha na comunicação com o Google')}
+                                    useOneTap
+                                    theme="outline"
+                                    size="large"
+                                    width="100%"
+                                    locale="pt-BR"
+                                />
+                            </div>
                         </div>
                     </div>
 
